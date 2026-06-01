@@ -1,57 +1,101 @@
-# 🎥 AI Webcam Object Detection
+# 🎥 Nhận Diện Vật Thể Từ Webcam
 
-Real-time object detection system using YOLOv8 + FastAPI + OpenCV with web-based UI for class filtering.
+Hệ thống nhận diện vật thể real-time sử dụng YOLOv8 + FastAPI + OpenCV với giao diện web để lọc lớp vật thể.
 
-## Features
+## Tính Năng
 
-- **YOLOv8 Detection**: High-speed object detection using YOLOv8n (nano)
-- **Class Filtering**: Select 1 of 3 target classes
-  - 👤 **Person**: Human detection
-  - 🚗 **Vehicle**: Cars, trucks, motorcycles, buses
-  - 🐾 **Animal**: Dogs, cats, birds, wildlife
-- **Real-time Streaming**: MJPEG video stream via FastAPI
-- **Web UI**: Interactive class selector with live detection
-- **Optimized Performance**: Minimal latency, efficient buffer management
+- **YOLOv8 Detection**: Nhận diện vật thể tốc độ cao với YOLOv8n (nano)
+- **Lọc Lớp Vật Thể**: Chọn 1 trong 3 lớp mục tiêu
+  - 👤 **Người**: Phát hiện con người
+  - 🚗 **Xe Cộ**: Ô tô, xe tải, xe máy, xe buýt
+  - 🐾 **Động Vật**: Chó, mèo, chim, động vật hoang dã
+- **Truyền Tải Real-time**: Luồng video MJPEG qua FastAPI
+- **Giao Diện Web**: Bộ chọn lớp tương tác với nhận diện trực tiếp
+- **Hiệu Suất Tối Ưu**: Độ trễ tối thiểu, quản lý bộ đệm hiệu quả
+- **Thông Báo Telegram**: Tự động gửi tin nhắn khi phát hiện vật thể
 
-## Architecture
+## Kiến Trúc
 
 ```
 app/
-├── main.py          # FastAPI app + streaming endpoints
-├── camera.py        # Camera capture + frame processing
-├── detector.py      # YOLOv8 wrapper for inference
-└── config.py        # Class mappings + thresholds
+├── main.py          # Ứng dụng FastAPI + điểm cuối truyền tải
+├── camera.py        # Chụp camera + xử lý khung hình
+├── detector.py      # Bộ bao bọc YOLOv8 để suy luận
+└── config.py        # Ánh xạ lớp + ngưỡng
+
+bot_telegram/
+├── bot.py           # Điểm vào chính của bot
+└── config.py        # Cấu hình bot + hàm tiện ích
 ```
 
-## Installation
+## Cài Đặt
 
-1. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
+### 1. Cài Đặt Thư Viện
+
+```bash
+pip install -r requirements.txt
+```
+
+Lần chạy đầu tiên sẽ tải xuống mô hình YOLOv8 (~35MB).
+
+### 2. Cấu Hình Telegram Bot (Tùy Chọn)
+
+Để nhận thông báo khi phát hiện vật thể, bạn cần:
+
+1. **Tạo Bot Telegram**:
+   - Mở Telegram và tìm `@BotFather`
+   - Gửi lệnh `/newbot` và tuân theo hướng dẫn
+   - Sao chép `BOT_TOKEN` nhận được
+
+2. **Lấy Chat ID**:
+   - Tìm bot bạn vừa tạo (search theo tên bot)
+   - Gửi tin nhắn `/start`
+   - Truy cập: `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
+   - Sao chép `id` từ field `chat.id` trong phản hồi JSON
+
+3. **Cấu Hình `.env`**:
+   - Copy file `.env.example` thành `.env`
+
+   - Mở `.env` và thêm:
+
+   ```env
+   TELEGRAM_BOT_TOKEN=your_bot_token_here
+   TELEGRAM_CHAT_ID=your_chat_id_here
+   DETECTION_THROTTLE=5
+   CONFIDENCE_THRESHOLD=0.5
+   IOU_THRESHOLD=0.45
    ```
 
-   First run will download YOLOv8 model (~35MB).
+**Lưu ý**: File `.env` sẽ bị gitignore, hãy giữ token của bạn an toàn!
 
-2. **Run application**:
-   ```bash
-   python run.py
-   ```
-   Or with uvicorn:
-   ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
+### 3. Chạy Ứng Dụng
 
-3. **Access**: Open `http://localhost:8000` in browser
+**Cách 1** (đơn giản):
 
-## API Endpoints
+```bash
+python run.py
+```
+
+**Cách 2** (với uvicorn):
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+3. **Truy Cập**: Mở `http://localhost:8000` trong trình duyệt
+
+## Các Điểm Cuối API
 
 ### GET `/`
-Serves web UI with class selector
+
+Phục vụ giao diện web với bộ chọn lớp
 
 ### GET `/video`
-MJPEG video stream with real-time detections (unchanged from original)
+
+Luồng video MJPEG với các phát hiện real-time
 
 ### GET `/api/classes`
+
 ```json
 {
   "classes": ["person", "vehicle", "animal"],
@@ -60,35 +104,40 @@ MJPEG video stream with real-time detections (unchanged from original)
 ```
 
 ### POST `/api/set-class/{class_name}`
-Set detection filter class
+
+Đặt lớp lọc phát hiện
+
 ```bash
 curl -X POST http://localhost:8000/api/set-class/vehicle
 ```
 
-## Configuration
+## Cấu Hình
 
-Edit [app/config.py](app/config.py) to:
-- Adjust confidence threshold (default: 0.5)
-- Change IOU threshold (default: 0.45)
-- Modify class colors or mappings
-- Switch YOLOv8 model (nano/small/medium)
+Chỉnh sửa [app/config.py](app/config.py) để:
 
-## Performance
+- Điều chỉnh ngưỡng tin cậy (mặc định: 0.5)
+- Thay đổi ngưỡng IOU (mặc định: 0.45)
+- Sửa đổi màu hoặc ánh xạ lớp
+- Chuyển đổi mô hình YOLOv8 (nano/small/medium)
 
-- **Model**: YOLOv8n (nano) - ~6ms inference
-- **Stream**: 30 FPS MJPEG
-- **Buffer**: Minimal (1 frame) for <100ms latency
-- **GPU**: Auto-detects CUDA, falls back to CPU
+## Hiệu Suất
 
-## Requirements
+- **Mô Hình**: YOLOv8n (nano) - ~6ms suy luận
+- **Luồng**: 30 FPS MJPEG
+- **Bộ Đệm**: Tối thiểu (1 khung hình) để độ trễ <100ms
+- **GPU**: Tự động phát hiện CUDA, quay lại CPU nếu cần
+
+## Yêu Cầu
 
 - Python 3.8+
 - Webcam
-- CUDA-capable GPU (optional, CPU supported)
+- GPU hỗ trợ CUDA (tùy chọn, CPU được hỗ trợ)
+- Telegram Bot Token (tùy chọn, để nhận thông báo)
 
-## Notes
+## Ghi Chú
 
-- Original classifier.py kept for backward compatibility (unused)
-- Thread-safe class state management
-- Graceful stream recovery on disconnection
-- Production-style error handling
+- Classifier.py gốc được giữ lại để tương thích ngược (không sử dụng)
+- Quản lý trạng thái lớp an toàn cho luồng
+- Phục hồi luồng nhẹ nhàng khi ngắt kết nối
+- Xử lý lỗi theo kiểu sản xuất
+- Cấu hình Telegram Bot từ file `.env` để bảo mật

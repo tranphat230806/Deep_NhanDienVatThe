@@ -2,6 +2,7 @@ import cv2
 import threading
 from app.detector import detect
 from app.config import CLASS_COLORS, DEFAULT_CLASS
+from bot_telegram.config import send_detection_message
 
 # Camera initialization
 camera = cv2.VideoCapture(0)
@@ -84,5 +85,10 @@ def get_frame():
     # Draw filtered detections
     if filtered_detections:
         frame = draw_detections(frame, filtered_detections)
+        
+        # Send Telegram notification
+        count = len(filtered_detections)
+        avg_confidence = sum(d["confidence"] for d in filtered_detections) / count
+        send_detection_message(target, avg_confidence, count)
 
     return frame, filtered_detections
