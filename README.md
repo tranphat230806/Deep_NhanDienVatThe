@@ -54,10 +54,12 @@ Lần chạy đầu tiên sẽ tải xuống mô hình YOLOv8 (~35MB).
    - Sao chép `id` từ field `chat.id` trong phản hồi JSON
 
 3. **Cấu Hình `.env`**:
-   - Copy file `.env.example` thành `.env`
+   - Copy file `.env.example` thành `.env`:
+   ```bash
+   cp .env.example .env
+   ```
 
    - Mở `.env` và thêm:
-
    ```env
    TELEGRAM_BOT_TOKEN=your_bot_token_here
    TELEGRAM_CHAT_ID=your_chat_id_here

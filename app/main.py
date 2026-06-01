@@ -3,10 +3,40 @@ from fastapi.responses import StreamingResponse, HTMLResponse
 import cv2
 from pathlib import Path
 
-from app.camera import get_frame, set_target_class, get_target_class
+from app.camera import get_frame, set_target_class, get_target_class, get_available_cameras, set_camera, get_camera_index
 from app.config import AVAILABLE_CLASSES
 
 app = FastAPI(title="AI Webcam Detection")
+
+
+# =====================
+# CAMERA ENDPOINTS
+# =====================
+@app.get("/api/cameras")
+def list_cameras():
+    """Get list of available cameras."""
+    available = get_available_cameras()
+    current = get_camera_index()
+    return {"cameras": available, "current": current}
+
+
+@app.post("/api/set-camera/{camera_index}")
+def switch_camera(camera_index: int):
+    """Switch to a different camera."""
+    available = get_available_cameras()
+    if camera_index not in available:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Camera {camera_index} not available. Available: {available}"
+        )
+    
+    if set_camera(camera_index):
+        return {"status": "ok", "camera": camera_index}
+    else:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize camera {camera_index}"
+        )
 
 
 # =====================

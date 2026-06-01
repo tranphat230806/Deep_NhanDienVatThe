@@ -2,15 +2,58 @@ import cv2
 import threading
 from app.detector import detect
 from app.config import CLASS_COLORS, DEFAULT_CLASS
-from bot_telegram.config import send_detection_message
+from bot_telegram.config import send_detection_message, send_detection_image
 
-# Camera initialization
-camera = cv2.VideoCapture(0)
-camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize latency
-
-# Thread-safe state management
+# Camera state management
 _state_lock = threading.Lock()
+_camera_index = 0
 _target_class = DEFAULT_CLASS
+_camera = None
+
+
+def get_available_cameras(max_index=5):
+    """Detect available cameras (0 to max_index-1)."""
+    available = []
+    for i in range(max_index):
+        cap = cv2.VideoCapture(i)
+        if cap.isOpened():
+            available.append(i)
+            cap.release()
+        else:
+            cap.release()
+    return available
+
+
+def initialize_camera(index: int):
+    """Initialize camera with given index."""
+    global _camera
+    with _state_lock:
+        if _camera is not None:
+            _camera.release()
+        
+        _camera = cv2.VideoCapture(index)
+        if _camera.isOpened():
+            _camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize latency
+            return True
+        else:
+            _camera = None
+            return False
+
+
+def set_camera(index: int) -> bool:
+    """Switch to a different camera."""
+    global _camera_index
+    if initialize_camera(index):
+        with _state_lock:
+            _camera_index = index
+        return True
+    return False
+
+
+def get_camera_index() -> int:
+    """Get current camera index."""
+    with _state_lock:
+        return _camera_index
 
 
 def set_target_class(class_name: str):
@@ -68,7 +111,12 @@ def draw_detections(frame, detections):
 
 def get_frame():
     """Capture frame and apply YOLOv8 detection with filtering."""
-    success, frame = camera.read()
+    global _camera
+    
+    if _camera is None or not _camera.isOpened():
+        return None, None
+    
+    success, frame = _camera.read()
 
     if not success:
         return None, None
@@ -90,5 +138,12 @@ def get_frame():
         count = len(filtered_detections)
         avg_confidence = sum(d["confidence"] for d in filtered_detections) / count
         send_detection_message(target, avg_confidence, count)
+        
+        # Send Telegram image (2 minute throttle)
+        send_detection_image(target, frame, avg_confidence, count)
 
     return frame, filtered_detections
+
+
+# Initialize camera on startup
+initialize_camera(0)
