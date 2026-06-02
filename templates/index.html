@@ -133,6 +133,52 @@
         color: #00ff88;
       }
 
+      .models-panel {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .model-card {
+        padding: 15px;
+        background: rgba(51, 51, 51, 0.7);
+        border-radius: 8px;
+        border-left: 4px solid #00d4ff;
+        text-align: left;
+        font-size: 0.85em;
+      }
+
+      .model-card h3 {
+        color: #00d4ff;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+      }
+
+      .model-card p {
+        color: #ccc;
+        margin: 5px 0;
+      }
+
+      .confidence-bar {
+        background: #333;
+        border-radius: 4px;
+        height: 20px;
+        margin: 8px 0;
+        overflow: hidden;
+      }
+
+      .confidence-fill {
+        background: linear-gradient(90deg, #00ff88 0%, #00d4ff 100%);
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #1a1a1a;
+        font-size: 0.8em;
+        font-weight: bold;
+      }
+
       @media (max-width: 768px) {
         h1 {
           font-size: 1.8em;
@@ -149,6 +195,10 @@
 
         img {
           width: 100%;
+        }
+
+        .models-panel {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -180,15 +230,65 @@
         <img src="/video" alt="Live Video Stream" id="videoStream" />
       </div>
 
+      <div class="models-panel">
+        <div class="model-card">
+          <h3>🎯 YOLOv8n (Object Detection)</h3>
+          <p><strong>Status:</strong> <span id="yolo-status">Active</span></p>
+          <p><strong>Model:</strong> YOLOv8 Nano</p>
+          <p><strong>Task:</strong> Object Detection + Classification</p>
+        </div>
+        <div class="model-card">
+          <h3>🤖 ResNet34 (Image Classification)</h3>
+          <p>
+            <strong>Status:</strong> <span id="resnet-status">Loading...</span>
+          </p>
+          <p><strong>Class:</strong> <span id="resnet-class">-</span></p>
+          <div class="confidence-bar">
+            <div class="confidence-fill" id="resnet-bar" style="width: 0%">
+              0%
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="info">
         <strong>Detection Filters:</strong><br />
         👤 <strong>Person:</strong> Humans detected in frame<br />
         🚗 <strong>Vehicle:</strong> Cars, trucks, bikes, buses, etc.<br />
-        🐾 <strong>Animal:</strong> Dogs, cats, birds, and other animals
+        🐾 <strong>Animal:</strong> Dogs, cats, birds, and other animals<br /><br />
+        <strong>Model Comparison:</strong><br />
+        🎯 <strong>YOLOv8:</strong> Real-time object detection with bounding
+        boxes<br />
+        🤖 <strong>ResNet34:</strong> Full-frame classification (runs every 5
+        frames)
       </div>
     </div>
 
     <script>
+      function updateModelStatus() {
+        fetch("/api/models")
+          .then((response) => response.json())
+          .then((data) => {
+            document.getElementById("yolo-status").textContent = "Active";
+
+            if (data.last_resnet_prediction) {
+              const pred = data.last_resnet_prediction;
+              document.getElementById("resnet-status").textContent = "Ready";
+              document.getElementById("resnet-class").textContent = pred.class.toUpperCase();
+
+              const confidence = Math.round(pred.confidence * 100);
+              const bar = document.getElementById("resnet-bar");
+              bar.style.width = confidence + "%";
+              bar.textContent = confidence + "%";
+            } else {
+              document.getElementById("resnet-status").textContent = "Loading...";
+            }
+          })
+          .catch(() => {
+            document.getElementById("resnet-status").textContent = "Error";
+          });
+      }
+
       function loadCameras() {
         fetch("/api/cameras")
           .then((response) => response.json())
@@ -204,7 +304,7 @@
             data.cameras.forEach((cam) => {
               const option = document.createElement("option");
               option.value = cam;
-              option.textContent = `📹 Camera ${cam}`;
+              option.textContent = `Camera ${cam}`;
               if (cam === data.current) {
                 option.selected = true;
               }
@@ -270,7 +370,11 @@
       window.addEventListener("DOMContentLoaded", () => {
         loadCameras();
         setClass();
+        updateModelStatus();
       });
+
+      // Update model status every 1 second
+      setInterval(updateModelStatus, 1000);
 
       // Refresh video stream on reconnect
       document.getElementById("videoStream").addEventListener("error", () => {

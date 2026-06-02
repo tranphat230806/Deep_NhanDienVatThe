@@ -1,6 +1,7 @@
 import cv2
 import threading
 from app.detector import detect
+from app.resnet_model import predict as resnet_predict
 from app.config import CLASS_COLORS, DEFAULT_CLASS
 from bot_telegram.config import send_detection_message, send_detection_image
 
@@ -9,6 +10,9 @@ _state_lock = threading.Lock()
 _camera_index = 0
 _target_class = DEFAULT_CLASS
 _camera = None
+_resnet_result = None
+_frame_count = 0
+_resnet_interval = 5  # Run ResNet34 every 5 frames to save compute
 
 
 def get_available_cameras(max_index=5):
@@ -69,6 +73,12 @@ def get_target_class() -> str:
         return _target_class
 
 
+def get_resnet_result():
+    """Get last ResNet34 classification result."""
+    with _state_lock:
+        return _resnet_result
+
+
 def draw_detections(frame, detections):
     """Draw bounding boxes, labels, and confidence on frame."""
     for det in detections:
@@ -110,18 +120,18 @@ def draw_detections(frame, detections):
 
 
 def get_frame():
-    """Capture frame and apply YOLOv8 detection with filtering."""
-    global _camera
+    """Capture frame and apply YOLOv8 detection + ResNet34 classification."""
+    global _camera, _frame_count, _resnet_result
     
     if _camera is None or not _camera.isOpened():
-        return None, None
+        return None, None, None
     
     success, frame = _camera.read()
 
     if not success:
-        return None, None
+        return None, None, None
 
-    # Run detection
+    # Run YOLOv8 detection
     detections = detect(frame)
 
     # Filter by target class
@@ -130,6 +140,14 @@ def get_frame():
         d for d in detections if d["grouped_class"] == target
     ]
 
+    # Run ResNet34 classification every N frames
+    _frame_count += 1
+    if _frame_count % _resnet_interval == 0:
+        resnet_result = resnet_predict(frame)
+        if resnet_result:
+            with _state_lock:
+                _resnet_result = resnet_result
+    
     # Draw filtered detections
     if filtered_detections:
         frame = draw_detections(frame, filtered_detections)
@@ -142,7 +160,7 @@ def get_frame():
         # Send Telegram image (2 minute throttle)
         send_detection_image(target, frame, avg_confidence, count)
 
-    return frame, filtered_detections
+    return frame, filtered_detections, _resnet_result
 
 
 # Initialize camera on startup

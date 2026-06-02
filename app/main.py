@@ -3,10 +3,24 @@ from fastapi.responses import StreamingResponse, HTMLResponse
 import cv2
 from pathlib import Path
 
-from app.camera import get_frame, set_target_class, get_target_class, get_available_cameras, set_camera, get_camera_index
+from app.camera import get_frame, set_target_class, get_target_class, get_available_cameras, set_camera, get_camera_index, get_resnet_result
 from app.config import AVAILABLE_CLASSES
 
 app = FastAPI(title="AI Webcam Detection")
+
+
+# =====================
+# MODEL ENDPOINTS
+# =====================
+@app.get("/api/models")
+def get_model_status():
+    """Get status of both models."""
+    resnet_result = get_resnet_result()
+    return {
+        "yolo": "YOLOv8n (nano)",
+        "resnet34": "Classification model" if resnet_result else "Not loaded",
+        "last_resnet_prediction": resnet_result
+    }
 
 
 # =====================
@@ -138,7 +152,7 @@ def home():
 def gen_frames():
     """Generate video frames for streaming."""
     while True:
-        frame, _ = get_frame()
+        frame, _, _ = get_frame()
 
         if frame is None:
             continue
