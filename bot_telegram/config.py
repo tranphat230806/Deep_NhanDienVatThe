@@ -20,7 +20,7 @@ BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
 # Throttle detection messages (seconds)
 DETECTION_THROTTLE = int(os.getenv("DETECTION_THROTTLE", "5"))
 # Throttle detection images (120 seconds = 2 minutes)
-IMAGE_THROTTLE = 120
+IMAGE_THROTTLE = 45
 _last_detection_time = {}
 _last_image_time = {}
 
