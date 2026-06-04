@@ -70,9 +70,12 @@ def send_detection_message(class_name: str, confidence: float, count: int = 1):
         emoji_map = {
             "person": "👤",
             "vehicle": "🚗",
-            "animal": "🐾"
+            "animal": "🐾",
+            "dog": "🐶",
+            "cat": "🐱",
+            "phone": "📱"
         }
-        emoji = emoji_map.get(class_name, "📦")
+        emoji = emoji_map.get(class_name.lower(), "📦")
         
         message = (
             f"{emoji} <b>Phát hiện vật thể!</b>\n"
@@ -129,9 +132,12 @@ def send_detection_image(class_name: str, frame, confidence: float, count: int =
         emoji_map = {
             "person": "👤",
             "vehicle": "🚗",
-            "animal": "🐾"
+            "animal": "🐾",
+            "dog": "🐶",
+            "cat": "🐱",
+            "phone": "📱"
         }
-        emoji = emoji_map.get(class_name, "📦")
+        emoji = emoji_map.get(class_name.lower(), "📦")
         
         caption = (
             f"{emoji} <b>Phát hiện vật thể!</b>\n"

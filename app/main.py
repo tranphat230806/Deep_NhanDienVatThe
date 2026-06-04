@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse, HTMLResponse
 import cv2
 from pathlib import Path
 
-from app.camera import get_frame, set_target_class, get_target_class, get_available_cameras, set_camera, get_camera_index, get_resnet_result
+from app.camera import get_frame, set_target_class, get_target_class, get_available_cameras, set_camera, get_camera_index, get_resnet_result, get_target_classes, set_target_classes
 from app.config import AVAILABLE_CLASSES
 
 app = FastAPI(title="AI Webcam Detection")
@@ -59,7 +59,7 @@ def switch_camera(camera_index: int):
 @app.get("/api/classes")
 def get_available_classes():
     """Get available detection classes."""
-    return {"classes": AVAILABLE_CLASSES, "current": get_target_class()}
+    return {"classes": AVAILABLE_CLASSES, "current": get_target_classes()}
 
 
 @app.post("/api/set-class/{class_name}")
@@ -72,6 +72,19 @@ def set_detection_class(class_name: str):
         )
     set_target_class(class_name)
     return {"status": "ok", "class": class_name}
+
+
+@app.post("/api/set-classes")
+def set_detection_classes(classes: list[str]):
+    """Set active target detection classes."""
+    for class_name in classes:
+        if class_name not in AVAILABLE_CLASSES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid class: {class_name}. Choose from {AVAILABLE_CLASSES}"
+            )
+    set_target_classes(classes)
+    return {"status": "ok", "classes": classes}
 
 
 # =====================

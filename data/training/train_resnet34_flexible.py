@@ -17,8 +17,8 @@ NUM_EPOCHS = 50
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Paths
-DATA_DIR = Path(__file__).parent.parent / "data" / "training"
-MODEL_DIR = Path(__file__).parent.parent / "models"
+DATA_DIR = Path(__file__).resolve().parent
+MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "models"
 MODEL_PATH = MODEL_DIR / "resnet34_classifier.pth"
 
 # Create directories if needed
@@ -285,6 +285,17 @@ def main():
         print(f"Best validation accuracy: {best_val_acc:.2f}%")
     print(f"Model saved to: {MODEL_PATH}")
     print(f"Classes: {classes}")
+    
+    # Save classes JSON mapping
+    CLASSES_PATH = MODEL_DIR / "resnet34_classes.json"
+    try:
+        import json
+        with open(CLASSES_PATH, "w", encoding="utf-8") as f:
+            json.dump(classes, f, indent=4)
+        print(f"✓ Saved class names mapping to {CLASSES_PATH}")
+    except Exception as e:
+        print(f"⚠ Warning: Failed to save class names mapping: {e}")
+        
     print("=" * 60)
 
 
