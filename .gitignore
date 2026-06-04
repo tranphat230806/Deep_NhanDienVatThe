@@ -39,10 +39,7 @@ env/
 *~
 .DS_Store
 
-# Models
-*.pt
-*.pth
-*.onnx
+
 
 # Videos and images
 *.mp4
@@ -51,3 +48,4 @@ env/
 *.jpg
 *.jpeg
 *.png
+*.gif

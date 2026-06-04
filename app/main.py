@@ -3,10 +3,54 @@ from fastapi.responses import StreamingResponse, HTMLResponse
 import cv2
 from pathlib import Path
 
-from app.camera import get_frame, set_target_class, get_target_class
+from app.camera import get_frame, set_target_class, get_target_class, get_available_cameras, set_camera, get_camera_index, get_resnet_result, get_target_classes, set_target_classes
 from app.config import AVAILABLE_CLASSES
 
 app = FastAPI(title="AI Webcam Detection")
+
+
+# =====================
+# MODEL ENDPOINTS
+# =====================
+@app.get("/api/models")
+def get_model_status():
+    """Get status of both models."""
+    resnet_result = get_resnet_result()
+    return {
+        "yolo": "YOLOv8n (nano)",
+        "resnet34": "Classification model" if resnet_result else "Not loaded",
+        "last_resnet_prediction": resnet_result
+    }
+
+
+# =====================
+# CAMERA ENDPOINTS
+# =====================
+@app.get("/api/cameras")
+def list_cameras():
+    """Get list of available cameras."""
+    available = get_available_cameras()
+    current = get_camera_index()
+    return {"cameras": available, "current": current}
+
+
+@app.post("/api/set-camera/{camera_index}")
+def switch_camera(camera_index: int):
+    """Switch to a different camera."""
+    available = get_available_cameras()
+    if camera_index not in available:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Camera {camera_index} not available. Available: {available}"
+        )
+    
+    if set_camera(camera_index):
+        return {"status": "ok", "camera": camera_index}
+    else:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize camera {camera_index}"
+        )
 
 
 # =====================
@@ -15,7 +59,7 @@ app = FastAPI(title="AI Webcam Detection")
 @app.get("/api/classes")
 def get_available_classes():
     """Get available detection classes."""
-    return {"classes": AVAILABLE_CLASSES, "current": get_target_class()}
+    return {"classes": AVAILABLE_CLASSES, "current": get_target_classes()}
 
 
 @app.post("/api/set-class/{class_name}")
@@ -28,6 +72,19 @@ def set_detection_class(class_name: str):
         )
     set_target_class(class_name)
     return {"status": "ok", "class": class_name}
+
+
+@app.post("/api/set-classes")
+def set_detection_classes(classes: list[str]):
+    """Set active target detection classes."""
+    for class_name in classes:
+        if class_name not in AVAILABLE_CLASSES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid class: {class_name}. Choose from {AVAILABLE_CLASSES}"
+            )
+    set_target_classes(classes)
+    return {"status": "ok", "classes": classes}
 
 
 # =====================
@@ -108,7 +165,7 @@ def home():
 def gen_frames():
     """Generate video frames for streaming."""
     while True:
-        frame, _ = get_frame()
+        frame, _, _ = get_frame()
 
         if frame is None:
             continue

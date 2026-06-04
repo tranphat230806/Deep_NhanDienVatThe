@@ -10,7 +10,7 @@ import uvicorn
 import sys
 
 if __name__ == "__main__":
-    print("🎥 Starting AI Webcam Detection Server...")
+    print("Starting AI Webcam Detection Server...")
     print("   YOLOv8n | FastAPI | OpenCV")
     print("   Visit: http://localhost:8000")
     

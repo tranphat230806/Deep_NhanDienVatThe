@@ -1,219 +1,852 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-time Object Detection</title>
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Vision — Real-time Object Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+      :root {
+        --accent: #00e5ff;
+        --accent-green: #00ffa3;
+        --accent-purple: #a855f7;
+        --bg-dark: #080c14;
+        --bg-card: rgba(255, 255, 255, 0.04);
+        --bg-card-hover: rgba(255, 255, 255, 0.07);
+        --border: rgba(255, 255, 255, 0.08);
+        --border-accent: rgba(0, 229, 255, 0.4);
+        --text-primary: #f0f4ff;
+        --text-secondary: #8899aa;
+        --text-muted: #445566;
+        --danger: #ff4466;
+        --success: #00ffa3;
+        --warning: #ffbb00;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background: var(--bg-dark);
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--text-primary);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* Animated background mesh */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0, 229, 255, 0.06) 0%, transparent 60%),
+          radial-gradient(ellipse 60% 40% at 80% 80%, rgba(168, 85, 247, 0.06) 0%, transparent 60%),
+          radial-gradient(ellipse 40% 60% at 50% 50%, rgba(0, 255, 163, 0.03) 0%, transparent 70%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* ==============================
+         HEADER / NAVBAR
+         ============================== */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        padding: 0 32px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(8, 12, 20, 0.85);
+        backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .logo-icon {
+        width: 34px;
+        height: 34px;
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-purple) 100%);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+      }
+
+      .logo-text {
+        font-size: 1.1rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        background: linear-gradient(90deg, var(--accent) 0%, var(--accent-green) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      /* Live indicator */
+      .live-badge {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: rgba(0, 255, 163, 0.1);
+        border: 1px solid rgba(0, 255, 163, 0.3);
+        border-radius: 20px;
+        padding: 5px 14px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--accent-green);
+        letter-spacing: 0.04em;
+      }
+
+      .live-dot {
+        width: 7px;
+        height: 7px;
+        background: var(--accent-green);
+        border-radius: 50%;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.8); }
+      }
+
+      /* Camera selector chip */
+      .cam-select-wrap {
+        position: relative;
+      }
+
+      .cam-select-wrap select {
+        appearance: none;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 0.82rem;
+        font-weight: 500;
+        padding: 6px 30px 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+        min-width: 120px;
+      }
+
+      .cam-select-wrap select:hover,
+      .cam-select-wrap select:focus {
+        border-color: var(--border-accent);
+        background: var(--bg-card-hover);
+        outline: none;
+      }
+
+      .cam-select-wrap::after {
+        content: "▾";
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+      }
+
+      /* ==============================
+         MAIN LAYOUT
+         ============================== */
+      main {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        grid-template-rows: auto 1fr;
+        gap: 0;
+        max-width: 1300px;
+        margin: 0 auto;
+        padding: 24px;
+        min-height: calc(100vh - 64px);
+      }
+
+      /* ==============================
+         VIDEO PANEL
+         ============================== */
+      .video-panel {
+        grid-column: 1;
+        grid-row: 1 / 3;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding-right: 24px;
+      }
+
+      .video-wrapper {
+        position: relative;
+        width: 100%;
+        background: #000;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.1), 0 24px 60px rgba(0,0,0,0.6);
+        aspect-ratio: 16/9;
+      }
+
+      .video-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      /* Scan line overlay */
+      .video-wrapper::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.03) 2px,
+          rgba(0, 0, 0, 0.03) 4px
+        );
+        pointer-events: none;
+        border-radius: inherit;
+      }
+
+      /* Corner brackets */
+      .video-wrapper::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background:
+          linear-gradient(to right, var(--accent) 0%, var(--accent) 100%) top left / 30px 2px no-repeat,
+          linear-gradient(to bottom, var(--accent) 0%, var(--accent) 100%) top left / 2px 30px no-repeat,
+          linear-gradient(to left, var(--accent) 0%, var(--accent) 100%) top right / 30px 2px no-repeat,
+          linear-gradient(to bottom, var(--accent) 0%, var(--accent) 100%) top right / 2px 30px no-repeat,
+          linear-gradient(to right, var(--accent) 0%, var(--accent) 100%) bottom left / 30px 2px no-repeat,
+          linear-gradient(to top, var(--accent) 0%, var(--accent) 100%) bottom left / 2px 30px no-repeat,
+          linear-gradient(to left, var(--accent) 0%, var(--accent) 100%) bottom right / 30px 2px no-repeat,
+          linear-gradient(to top, var(--accent) 0%, var(--accent) 100%) bottom right / 2px 30px no-repeat;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      /* ==============================
+         FILTER CHIPS BAR
+         ============================== */
+      .filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .filter-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+        margin-right: 4px;
+      }
+
+      .filter-chips {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .chip-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .chip-label input[type="checkbox"] {
+        display: none;
+      }
+
+      .chip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 16px;
+        border-radius: 100px;
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        font-size: 0.84rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: all 0.2s ease;
+        cursor: pointer;
+      }
+
+      .chip:hover {
+        border-color: rgba(255,255,255,0.2);
+        color: var(--text-primary);
+        background: var(--bg-card-hover);
+      }
+
+      .chip-label input:checked + .chip {
+        background: rgba(0, 229, 255, 0.12);
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .chip-label input:checked + .chip.chip-vehicle {
+        background: rgba(168, 85, 247, 0.12);
+        border-color: var(--accent-purple);
+        color: var(--accent-purple);
+      }
+
+      .chip-label input:checked + .chip.chip-animal {
+        background: rgba(255, 187, 0, 0.12);
+        border-color: var(--warning);
+        color: var(--warning);
+      }
+
+      .chip-label input:checked + .chip.chip-phone {
+        background: rgba(0, 255, 163, 0.12);
+        border-color: var(--accent-green);
+        color: var(--accent-green);
+      }
+
+      .chip-emoji {
+        font-size: 1rem;
+      }
+
+      /* ==============================
+         SIDE PANEL
+         ============================== */
+      .side-panel {
+        grid-column: 2;
+        grid-row: 1 / 3;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Card base */
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+        backdrop-filter: blur(12px);
+        transition: border-color 0.2s;
+      }
+
+      .card:hover {
+        border-color: rgba(255,255,255,0.12);
+      }
+
+      .card-title {
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-secondary);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .card-title-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent);
+        flex-shrink: 0;
+      }
+
+      /* Detection summary stats */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .stat-item {
+        background: rgba(0,0,0,0.25);
+        border-radius: 10px;
+        padding: 14px 12px;
+        text-align: center;
+        border: 1px solid var(--border);
+        transition: all 0.2s;
+      }
+
+      .stat-item.active-stat {
+        border-color: rgba(0, 229, 255, 0.3);
+        background: rgba(0, 229, 255, 0.05);
+      }
+
+      .stat-value {
+        font-size: 1.7rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 4px;
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-green) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .stat-label {
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      /* Status tag */
+      .status-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 100px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        background: rgba(0, 255, 163, 0.12);
+        color: var(--accent-green);
+        border: 1px solid rgba(0, 255, 163, 0.25);
+        transition: all 0.3s;
+        width: 100%;
+        justify-content: center;
+        margin-top: 4px;
+        letter-spacing: 0.01em;
+      }
+
+      .status-tag.error {
+        background: rgba(255, 68, 102, 0.1);
+        color: var(--danger);
+        border-color: rgba(255, 68, 102, 0.25);
+      }
+
+      .status-tag.warning {
+        background: rgba(255, 187, 0, 0.1);
+        color: var(--warning);
+        border-color: rgba(255, 187, 0, 0.25);
+      }
+
+      /* Detection class legend */
+      .legend-list {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.83rem;
+        color: var(--text-secondary);
+      }
+
+      .legend-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .legend-dot.person { background: #00e5ff; }
+      .legend-dot.vehicle { background: #a855f7; }
+      .legend-dot.animal { background: #ffbb00; }
+      .legend-dot.phone { background: #00ffa3; }
+
+      .legend-name {
+        flex: 1;
+        font-weight: 500;
+        color: var(--text-primary);
+      }
+
+      .legend-desc {
+        font-size: 0.74rem;
+        color: var(--text-muted);
+        text-align: right;
+      }
+
+      /* Divider */
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 4px 0;
+      }
+
+      /* System info row */
+      .sys-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        padding: 5px 0;
+        color: var(--text-secondary);
+      }
+
+      .sys-row span:last-child {
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+
+      /* ==============================
+         RESPONSIVE
+         ============================== */
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto auto;
+          padding: 16px;
         }
 
-        body {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: white;
-            padding: 20px;
+        .video-panel {
+          grid-column: 1;
+          grid-row: 1;
+          padding-right: 0;
         }
 
-        .container {
-            text-align: center;
-            max-width: 900px;
-            width: 100%;
+        .side-panel {
+          grid-column: 1;
+          grid-row: 2;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 600px) {
+        header { padding: 0 16px; }
+        .logo-text { display: none; }
+
+        .side-panel {
+          grid-template-columns: 1fr;
         }
 
-        h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #00ff88 0%, #00d4ff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .stats-grid {
+          grid-template-columns: repeat(4, 1fr);
         }
-
-        .subtitle {
-            color: #aaa;
-            margin-bottom: 30px;
-            font-size: 0.95em;
-        }
-
-        .controls {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
-        }
-
-        .control-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        label {
-            font-weight: 600;
-            font-size: 1.05em;
-            color: #00ff88;
-        }
-
-        select {
-            padding: 10px 20px;
-            font-size: 1em;
-            border-radius: 8px;
-            background: #333;
-            color: #00ff88;
-            border: 2px solid #00ff88;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            min-width: 150px;
-        }
-
-        select:hover {
-            background: #404040;
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
-        }
-
-        select:focus {
-            outline: none;
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
-        }
-
-        .status {
-            padding: 8px 15px;
-            background: #00ff88;
-            color: #1a1a1a;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 0.9em;
-        }
-
-        .video-container {
-            position: relative;
-            display: inline-block;
-            width: 100%;
-            max-width: 800px;
-            margin-top: 20px;
-            background: #0a0a0a;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
-        }
-
-        img {
-            width: 100%;
-            height: auto;
-            display: block;
-            border: 3px solid #00ff88;
-            border-radius: 10px;
-        }
-
-        .info {
-            margin-top: 25px;
-            padding: 15px;
-            background: rgba(51, 51, 51, 0.5);
-            border-radius: 8px;
-            border-left: 4px solid #00ff88;
-            text-align: left;
-            font-size: 0.9em;
-            color: #ccc;
-        }
-
-        .info strong {
-            color: #00ff88;
-        }
-
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 1.8em;
-            }
-
-            .controls {
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            select {
-                min-width: 100%;
-            }
-
-            img {
-                width: 100%;
-            }
-        }
+      }
     </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🎥 Real-time Object Detection</h1>
-        <p class="subtitle">YOLOv8 powered detection on live webcam stream</p>
+  </head>
+  <body>
 
-        <div class="controls">
-            <div class="control-group">
-                <label for="classSelect">Target Class:</label>
-                <select id="classSelect" onchange="setClass()">
-                    <option value="person">👤 Person</option>
-                    <option value="vehicle">🚗 Vehicle</option>
-                    <option value="animal">🐾 Animal</option>
-                </select>
+    <!-- HEADER -->
+    <header>
+      <div class="logo">
+        <div class="logo-icon">🎯</div>
+        <span class="logo-text">AI Vision</span>
+      </div>
+      <div class="header-right">
+        <div class="live-badge">
+          <span class="live-dot"></span>
+          LIVE
+        </div>
+        <div class="cam-select-wrap">
+          <select id="cameraSelect" onchange="setCamera()">
+            <option value="">Đang tải camera...</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main>
+      <!-- VIDEO PANEL -->
+      <div class="video-panel">
+        <div class="video-wrapper">
+          <img src="/video" alt="Live Video Stream" id="videoStream" />
+        </div>
+
+        <!-- FILTER CHIPS -->
+        <div class="filter-bar">
+          <span class="filter-label">Phát hiện</span>
+          <div class="filter-chips">
+            <label class="chip-label" id="chip-person-label">
+              <input type="checkbox" class="class-checkbox" value="person" id="chip-person" onchange="setClasses()" />
+              <span class="chip chip-person"><span class="chip-emoji">👤</span> Person</span>
+            </label>
+            <label class="chip-label" id="chip-vehicle-label">
+              <input type="checkbox" class="class-checkbox" value="vehicle" id="chip-vehicle" onchange="setClasses()" />
+              <span class="chip chip-vehicle"><span class="chip-emoji">🚗</span> Vehicle</span>
+            </label>
+            <label class="chip-label" id="chip-animal-label">
+              <input type="checkbox" class="class-checkbox" value="animal" id="chip-animal" onchange="setClasses()" />
+              <span class="chip chip-animal"><span class="chip-emoji">🐾</span> Animal</span>
+            </label>
+            <label class="chip-label" id="chip-phone-label">
+              <input type="checkbox" class="class-checkbox" value="phone" id="chip-phone" onchange="setClasses()" />
+              <span class="chip chip-phone"><span class="chip-emoji">📱</span> Phone</span>
+            </label>
+          </div>
+          <span class="status-tag" id="status" style="width: auto; margin-top: 0;">Đang tải...</span>
+        </div>
+      </div>
+
+      <!-- SIDE PANEL -->
+      <div class="side-panel">
+
+        <!-- Thống kê phát hiện -->
+        <div class="card">
+          <div class="card-title">
+            <span class="card-title-dot"></span>
+            Trạng thái phát hiện
+          </div>
+          <div class="stats-grid">
+            <div class="stat-item" id="stat-person">
+              <div class="stat-value" id="stat-val-person">—</div>
+              <div class="stat-label">Person</div>
             </div>
-            <div class="status" id="status">Ready</div>
+            <div class="stat-item" id="stat-vehicle">
+              <div class="stat-value" id="stat-val-vehicle">—</div>
+              <div class="stat-label">Vehicle</div>
+            </div>
+            <div class="stat-item" id="stat-animal">
+              <div class="stat-value" id="stat-val-animal">—</div>
+              <div class="stat-label">Animal</div>
+            </div>
+            <div class="stat-item" id="stat-phone">
+              <div class="stat-value" id="stat-val-phone">—</div>
+              <div class="stat-label">Phone</div>
+            </div>
+          </div>
         </div>
 
-        <div class="video-container">
-            <img src="/video" alt="Live Video Stream" id="videoStream">
+        <!-- Chú thích màu sắc -->
+        <div class="card">
+          <div class="card-title">
+            <span class="card-title-dot" style="background: var(--accent-purple)"></span>
+            Danh mục nhận diện
+          </div>
+          <div class="legend-list">
+            <div class="legend-item">
+              <span class="legend-dot person"></span>
+              <span class="legend-name">Person</span>
+              <span class="legend-desc">Con người</span>
+            </div>
+            <div class="divider"></div>
+            <div class="legend-item">
+              <span class="legend-dot vehicle"></span>
+              <span class="legend-name">Vehicle</span>
+              <span class="legend-desc">Xe cộ, phương tiện</span>
+            </div>
+            <div class="divider"></div>
+            <div class="legend-item">
+              <span class="legend-dot animal"></span>
+              <span class="legend-name">Animal</span>
+              <span class="legend-desc">Chó, Mèo & thú khác</span>
+            </div>
+            <div class="divider"></div>
+            <div class="legend-item">
+              <span class="legend-dot phone"></span>
+              <span class="legend-name">Phone</span>
+              <span class="legend-desc">Điện thoại di động</span>
+            </div>
+          </div>
         </div>
 
-        <div class="info">
-            <strong>Detection Filters:</strong><br>
-            👤 <strong>Person:</strong> Humans detected in frame<br>
-            🚗 <strong>Vehicle:</strong> Cars, trucks, bikes, buses, etc.<br>
-            🐾 <strong>Animal:</strong> Dogs, cats, birds, and other animals
+        <!-- Hệ thống -->
+        <div class="card">
+          <div class="card-title">
+            <span class="card-title-dot" style="background: var(--accent-green)"></span>
+            Hệ thống
+          </div>
+          <div class="sys-row">
+            <span>Phát hiện</span>
+            <span id="sys-yolo">🟢 YOLOv8n</span>
+          </div>
+          <div class="sys-row">
+            <span>Phân loại</span>
+            <span id="sys-resnet">🟢 ResNet34</span>
+          </div>
+          <div class="sys-row">
+            <span>Cảnh báo</span>
+            <span>🟢 Telegram Bot</span>
+          </div>
+          <div class="sys-row">
+            <span>Stream</span>
+            <span>MJPEG / FastAPI</span>
+          </div>
         </div>
-    </div>
+
+      </div>
+    </main>
 
     <script>
-        function setClass() {
-            const selectedClass = document.getElementById('classSelect').value;
-            const statusEl = document.getElementById('status');
+      // =====================
+      // Camera
+      // =====================
+      function loadCameras() {
+        fetch("/api/cameras")
+          .then((r) => r.json())
+          .then((data) => {
+            const sel = document.getElementById("cameraSelect");
+            sel.innerHTML = "";
+            if (data.cameras.length === 0) {
+              sel.innerHTML = "<option>Không tìm thấy camera</option>";
+              return;
+            }
+            data.cameras.forEach((cam) => {
+              const opt = document.createElement("option");
+              opt.value = cam;
+              opt.textContent = `📷 Camera ${cam}`;
+              if (cam === data.current) opt.selected = true;
+              sel.appendChild(opt);
+            });
+          })
+          .catch(() => {
+            document.getElementById("cameraSelect").innerHTML =
+              "<option>Lỗi tải camera</option>";
+          });
+      }
 
-            statusEl.textContent = 'Updating...';
+      function setCamera() {
+        const cam = document.getElementById("cameraSelect").value;
+        if (!cam) return;
+        setStatus("Đang chuyển camera...", "warning");
+        fetch(`/api/set-camera/${cam}`, { method: "POST" })
+          .then((r) => {
+            if (r.ok) {
+              document.getElementById("videoStream").src =
+                "/video?" + Date.now();
+              setStatus(null, "ok");
+            } else {
+              setStatus("Lỗi camera", "error");
+            }
+          })
+          .catch(() => setStatus("Mất kết nối", "error"));
+      }
 
-            fetch(`/api/set-class/${selectedClass}`, { method: 'POST' })
-                .then(response => {
-                    if (response.ok) {
-                        statusEl.textContent = `Detecting: ${selectedClass}`;
-                        statusEl.style.background = '#00ff88';
-                    } else {
-                        statusEl.textContent = 'Error';
-                        statusEl.style.background = '#ff4444';
-                    }
-                })
-                .catch(() => {
-                    statusEl.textContent = 'Connection Error';
-                    statusEl.style.background = '#ff4444';
-                });
+      // =====================
+      // Classes / Chips
+      // =====================
+      function loadClasses() {
+        fetch("/api/classes")
+          .then((r) => r.json())
+          .then((data) => {
+            const current = data.current;
+            document.querySelectorAll(".class-checkbox").forEach((cb) => {
+              cb.checked = current.includes(cb.value);
+            });
+            updateActiveStats(current);
+            setStatus(null, "ok");
+          })
+          .catch(() => setStatus("Lỗi tải cấu hình", "error"));
+      }
+
+      function setClasses() {
+        const selected = [];
+        document.querySelectorAll(".class-checkbox").forEach((cb) => {
+          if (cb.checked) selected.push(cb.value);
+        });
+
+        setStatus("Đang cập nhật...", "warning");
+        fetch("/api/set-classes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(selected),
+        })
+          .then((r) => {
+            if (r.ok) {
+              updateActiveStats(selected);
+              setStatus(null, "ok", selected);
+            } else {
+              setStatus("Lỗi cập nhật", "error");
+            }
+          })
+          .catch(() => setStatus("Mất kết nối", "error"));
+      }
+
+      // =====================
+      // Status badge
+      // =====================
+      function setStatus(text, type = "ok", selectedClasses = null) {
+        const el = document.getElementById("status");
+        el.className = "status-tag";
+
+        if (type === "error") {
+          el.classList.add("error");
+          el.textContent = text || "Lỗi";
+        } else if (type === "warning") {
+          el.classList.add("warning");
+          el.textContent = text || "...";
+        } else {
+          if (selectedClasses !== null && selectedClasses.length === 0) {
+            el.classList.add("warning");
+            el.textContent = "Chưa chọn lớp";
+          } else if (selectedClasses !== null) {
+            const emojis = {
+              person: "👤",
+              vehicle: "🚗",
+              animal: "🐾",
+              phone: "📱",
+            };
+            el.textContent = selectedClasses.map((c) => emojis[c] + " " + c.charAt(0).toUpperCase() + c.slice(1)).join("  ·  ");
+          } else {
+            el.textContent = "✓ Đang phát hiện";
+          }
         }
+      }
 
-        // Initialize on load
-        window.addEventListener('DOMContentLoaded', () => {
-            setClass();
+      // =====================
+      // Stat tiles
+      // =====================
+      function updateActiveStats(activeClasses) {
+        ["person", "vehicle", "animal", "phone"].forEach((cls) => {
+          const tile = document.getElementById(`stat-${cls}`);
+          const val = document.getElementById(`stat-val-${cls}`);
+          if (activeClasses.includes(cls)) {
+            tile.classList.add("active-stat");
+            val.textContent = "ON";
+          } else {
+            tile.classList.remove("active-stat");
+            val.textContent = "—";
+          }
         });
+      }
 
-        // Refresh video stream on reconnect
-        document.getElementById('videoStream').addEventListener('error', () => {
-            setTimeout(() => {
-                document.getElementById('videoStream').src = '/video?' + new Date().getTime();
-            }, 3000);
-        });
+      // =====================
+      // Video reconnect
+      // =====================
+      document.getElementById("videoStream").addEventListener("error", () => {
+        setTimeout(() => {
+          document.getElementById("videoStream").src = "/video?" + Date.now();
+        }, 3000);
+      });
+
+      // =====================
+      // Init
+      // =====================
+      window.addEventListener("DOMContentLoaded", () => {
+        loadCameras();
+        loadClasses();
+      });
     </script>
-</body>
+  </body>
 </html>

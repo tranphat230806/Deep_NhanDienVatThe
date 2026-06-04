@@ -4,6 +4,8 @@ import psutil
 import requests
 import time
 import os
+import cv2
+import tempfile
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
@@ -17,7 +19,10 @@ BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
 
 # Throttle detection messages (seconds)
 DETECTION_THROTTLE = int(os.getenv("DETECTION_THROTTLE", "5"))
+# Throttle detection images (120 seconds = 2 minutes)
+IMAGE_THROTTLE = 45
 _last_detection_time = {}
+_last_image_time = {}
 
 
 def get_system_info():
@@ -65,9 +70,12 @@ def send_detection_message(class_name: str, confidence: float, count: int = 1):
         emoji_map = {
             "person": "👤",
             "vehicle": "🚗",
-            "animal": "🐾"
+            "animal": "🐾",
+            "dog": "🐶",
+            "cat": "🐱",
+            "phone": "📱"
         }
-        emoji = emoji_map.get(class_name, "📦")
+        emoji = emoji_map.get(class_name.lower(), "📦")
         
         message = (
             f"{emoji} <b>Phát hiện vật thể!</b>\n"
@@ -89,6 +97,77 @@ def send_detection_message(class_name: str, confidence: float, count: int = 1):
         
     except Exception as e:
         print(f"Lỗi gửi tin nhắn Telegram: {e}")
+        return False
+
+
+def send_detection_image(class_name: str, frame, confidence: float, count: int = 1):
+    """
+    Gửi ảnh vật thể được phát hiện qua Telegram.
+    
+    Args:
+        class_name: Loại vật thể (person, vehicle, animal)
+        frame: Frame ảnh (numpy array từ OpenCV)
+        confidence: Độ tin cậy (0-1)
+        count: Số lượng vật thể phát hiện
+    """
+    try:
+        # Throttle images để tránh spam (2 phút)
+        current_time = time.time()
+        last_time = _last_image_time.get(class_name, 0)
+        
+        if current_time - last_time < IMAGE_THROTTLE:
+            return False
+        
+        _last_image_time[class_name] = current_time
+        
+        # Chuyển frame thành ảnh JPG
+        _, buffer = cv2.imencode('.jpg', frame)
+        
+        # Tạo tệp tạm
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
+            tmp_file.write(buffer.tobytes())
+            temp_path = tmp_file.name
+        
+        # Xây dựng caption
+        emoji_map = {
+            "person": "👤",
+            "vehicle": "🚗",
+            "animal": "🐾",
+            "dog": "🐶",
+            "cat": "🐱",
+            "phone": "📱"
+        }
+        emoji = emoji_map.get(class_name.lower(), "📦")
+        
+        caption = (
+            f"{emoji} <b>Phát hiện vật thể!</b>\n"
+            f"<b>Loại:</b> {class_name.upper()}\n"
+            f"<b>Độ tin cậy:</b> {confidence * 100:.1f}%\n"
+            f"<b>Số lượng:</b> {count}"
+        )
+        
+        # Gửi ảnh qua Telegram API
+        url = f"{BASE_URL}/sendPhoto"
+        
+        with open(temp_path, 'rb') as photo:
+            files = {'photo': photo}
+            params = {
+                'chat_id': CHAT_ID,
+                'caption': caption,
+                'parse_mode': 'HTML'
+            }
+            response = requests.post(url, files=files, data=params, timeout=10)
+        
+        # Xóa tệp tạm
+        try:
+            os.remove(temp_path)
+        except:
+            pass
+        
+        return response.status_code == 200
+        
+    except Exception as e:
+        print(f"Lỗi gửi ảnh Telegram: {e}")
         return False
 
 
