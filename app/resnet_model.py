@@ -1,4 +1,4 @@
-"""ResNet34 model for image classification."""
+"""ResNet50 model for image classification (Cats vs Dogs)."""
 
 import torch
 import torch.nn as nn
@@ -10,11 +10,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Model path
 MODEL_DIR = Path(__file__).parent.parent / "models"
-MODEL_PATH = MODEL_DIR / "resnet34_classifier.pth"
+MODEL_PATH = MODEL_DIR / "resnet50_catsdogs.pth"
 CLASSES_PATH = MODEL_DIR / "resnet34_classes.json"
 
 # Class labels (loaded dynamically if exists)
-CLASS_NAMES = ["person", "vehicle", "animal"]
+CLASS_NAMES = ["Cat", "Dog"]
 if CLASSES_PATH.exists():
     try:
         import json
@@ -38,8 +38,8 @@ transform = transforms.Compose([
 ])
 
 
-class ResNet34Classifier:
-    """ResNet34 classifier for person/vehicle/animal detection."""
+class ResNet50Classifier:
+    """ResNet50 classifier for Cat/Dog sub-classification."""
     
     def __init__(self):
         self.model = None
@@ -47,33 +47,33 @@ class ResNet34Classifier:
         self._load_model()
     
     def _load_model(self):
-        """Load or create ResNet34 model."""
+        """Load or create ResNet50 model."""
         try:
-            self.model = models.resnet34(pretrained=True)
-            # Replace last layer for 3 classes
+            # Create ResNet50 structure without downloading weights
+            self.model = models.resnet50(weights=None)
+            # Replace last layer for NUM_CLASSES (usually 2: Cat, Dog)
             self.model.fc = nn.Linear(self.model.fc.in_features, NUM_CLASSES)
             
-            # Try to load trained weights
+            # Load trained ResNet50 weights
             if MODEL_PATH.exists():
                 self.model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
                 self.is_loaded = True
-                print(f"[OK] Loaded ResNet34 from {MODEL_PATH}")
+                print(f"[OK] Loaded ResNet50 from {MODEL_PATH}")
             else:
-                print(f"[WARN] ResNet34 weights not found at {MODEL_PATH}")
-                print(f"   Run training first: python training/train_resnet34.py")
+                print(f"[WARN] ResNet50 weights not found at {MODEL_PATH}")
                 self.is_loaded = False
             
             self.model.to(device)
             self.model.eval()
             
         except Exception as e:
-            print(f"[FAIL] Error loading ResNet34: {e}")
+            print(f"[FAIL] Error loading ResNet50: {e}")
             self.model = None
             self.is_loaded = False
     
     def predict(self, frame):
         """
-        Classify a frame using ResNet34.
+        Classify a frame using ResNet50.
         
         Args:
             frame: OpenCV frame (numpy array, BGR format)
@@ -111,14 +111,14 @@ class ResNet34Classifier:
             }
         
         except Exception as e:
-            print(f"Error in ResNet34 prediction: {e}")
+            print(f"Error in ResNet50 prediction: {e}")
             return None
 
 
 # Global model instance
-resnet_classifier = ResNet34Classifier()
+resnet_classifier = ResNet50Classifier()
 
 
 def predict(frame):
-    """Public API to get ResNet34 prediction."""
+    """Public API to get ResNet50 prediction."""
     return resnet_classifier.predict(frame)

@@ -16,12 +16,18 @@ BATCH_SIZE = 32
 LEARNING_RATE = 0.001
 NUM_EPOCHS = 50
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CLASS_NAMES = ["person", "vehicle", "animal"]
+CLASS_NAMES = ["Cat", "Dog"]
 NUM_CLASSES = len(CLASS_NAMES)
 
 # Paths
-DATA_DIR = Path(__file__).parent.parent / "data" / "training"
-MODEL_DIR = Path(__file__).parent.parent / "models"
+# Project root
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+# Data
+DATA_DIR = PROJECT_ROOT / "data" / "training"
+
+# Models
+MODEL_DIR = PROJECT_ROOT / "models"
 MODEL_PATH = MODEL_DIR / "resnet34_classifier.pth"
 
 # Create directories if needed
